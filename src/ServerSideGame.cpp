@@ -1,7 +1,6 @@
 #include "ServerSideGame.h"
 #include "Server.h"
 
-
 ServerSideGame::ServerSideGame() : id(0) 
 {
 
@@ -36,24 +35,6 @@ void ServerSideGame::Start(RakNet::RakPeerInterface& pPeerInterface)
 	}
 	// send data to players
 //	RakNet::Packet* packet = nullptr;
-/*
-	while (true)
-	{
-		for (packet = m_pPeerInterface->Receive(); packet; m_pPeerInterface->DeallocatePacket(packet), packet = m_pPeerInterface->Receive())
-		{
-			switch (packet->data[0])
-			{
-			case ID_NEW_INCOMING_CONNECTION:
-			{
-				addNewConnection(packet->systemAddress);
-				std::cout << "A connection is incoming.\n";
-				break;
-			}
-			default:
-				break;
-			}
-		}
-	}*/
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -63,7 +44,7 @@ void ServerSideGame::Start(RakNet::RakPeerInterface& pPeerInterface)
 		bsOut.Write(players[i].uiConnectionID); // client id
 		(i == 1) ? bsOut.Write(turn) : bsOut.Write(!turn);	// trun
 		bsOut.Write(player); // playerturn
-		for (int j = 0; j > 12; j ++)
+		for (int j = 0; j < 12; j++)
 		{
 			bsOut.Write(Red[j].position.x);
 			bsOut.Write(Red[j].position.y);
@@ -78,24 +59,34 @@ void ServerSideGame::Start(RakNet::RakPeerInterface& pPeerInterface)
 			bsOut.Write(Blue[j].crowned);
 		}// checker positions
 		pPeerInterface.Send(&bsOut, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, players[i].sysAddress, false);
-		//m_pPeerInterface->Send(&bs, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, m_connectedClients[uiClientID].sysAddress, false);
-
-		RakNet::BitStream temp;
-		temp.Write((RakNet::MessageID)GameMessages::ID_SERVER_TEXT_MESSAGE);
-		RakNet::RakString str((std::string("Message to player ") + std::string((i == 1 ? "Two" : "One"))).c_str());
-		temp.Write(str);
-		pPeerInterface.Send(&temp, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, players[i].sysAddress, false);
-		//std::cout << "Sent message to player " << (i == 0 ? "one" : "two") << std::endl;
 	}
 
+	Update(pPeerInterface);
 }
 
-void ServerSideGame::Update(/*packet data*/)
+void ServerSideGame::Update(RakNet::RakPeerInterface& m_pPeerInterface)
 {
-
 	// recieve the data 
 	// do the action with shit 
-	//tell who can move now
+	// tell who can move now
+	RakNet::Packet* packet = nullptr;
+	while (true)
+	{
+		for (packet = m_pPeerInterface.Receive(); packet; m_pPeerInterface.DeallocatePacket(packet), packet = m_pPeerInterface.Receive())
+		{
+			switch (packet->data[0])
+			{
+			case ID_SEND_CURRENT_MOVE:
+			{
+				std::cout << "HOLYSHIT.\n";
+				break;
+			}
+			default:
+				break;
+			}
+		}
+	}
+
 
 
 

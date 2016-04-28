@@ -100,7 +100,7 @@ bool BasicNetworkingApplication::update(float deltaTime) {
 
 void BasicNetworkingApplication::draw()
 {
-	glClearColor(1, 1, 1, 1);
+	glClearColor(1, 1, 1, 1); 
 
 	// clear the screen for this frame
 	glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
@@ -321,6 +321,9 @@ void BasicNetworkingApplication::sendUpdatedObjectPositionToServer(GameObject& a
 }
 void BasicNetworkingApplication::startGame(RakNet::BitStream& bsIn)
 {
-
-	ClientSideGame Game = ClientSideGame(*m_camera, bsIn);
+	shutdown();
+	ClientSideGame* Game = new ClientSideGame(bsIn, m_pPeerInterface);
+	if (Game->startup())
+		Game->run();
+	Game->shutdown();
 }

@@ -3,18 +3,32 @@
 #include "Gizmos.h"
 #include "Camera.h"
 #include "BasicNetworkingApplication.h"
+#include <RakPeerInterface.h>
+#include <RakString.h>
 
-class ClientSideGame : public BasicNetworkingApplication {
+namespace RakNet {
+	class RakPeerInterface;
+}
+
+class ClientSideGame : public BaseApplication {
 public:
 	ClientSideGame() {}
-	ClientSideGame(Camera &m_camera, RakNet::BitStream& bsIn);
-	void Start(Camera &camera);
+	ClientSideGame(RakNet::BitStream& bsIn, RakNet::RakPeerInterface* m_pPeerInterface);
+
+	virtual bool startup();
+	virtual void shutdown();
+
+	virtual bool update(float deltaTime);
+
+	virtual void draw();
 
 
 private:
+	RakNet::RakPeerInterface* m_pPeerInterface;
 
 	glm::vec3	m_pickPosition;
-	int selectedChecker;
+
+	Camera*		m_camera;
 
 	int id;
 
@@ -22,15 +36,15 @@ private:
 
 	bool turn;
 
-	void Update(float deltatime, GLFWwindow * m_window);
 	void DrawGameBoard();
-	void Draw();
 
 	std::vector<Directions> CheckMoveableDirections(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected);
 	bool DidRedCrown(Checker currentPlayer[]);
 	bool DidBlueCrown(Checker currentPlayer[]);
 	bool IsClickingChecker(glm::vec3 pickposition, Checker checker[], glm::vec4 selectedColor);
+	int ClientSideGame::FindClickingChecker(glm::vec3 pickposition, Checker checker[]);
 
+	int selectedChecker = -1;
 	enum Player { Player_1, Player_2 };
 	enum State { Clicked, Moved, Empty };
 

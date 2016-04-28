@@ -20,7 +20,7 @@ private:
 
 	int id;
 
-	void Update();
+	void Update(RakNet::RakPeerInterface& m_pPeerInterface);
 
 
 	enum Player { Player_1, Player_2 };
