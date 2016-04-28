@@ -4,6 +4,8 @@
 #include <GLFW/glfw3.h>
 #include <glm/ext.hpp>
 
+// tood sucks willys A-Arom is you see this it was due to helping todd with git
+
 Camera::Camera(float fovY, float aspectRatio, float near, float far)
 	: m_speed(10),
 	m_up(0,1,0),
