@@ -109,56 +109,96 @@ bool ClientSideGame::update(float deltaTime)
 		m_pickPosition = m_camera->pickAgainstPlane((float)x, (float)y, plane);
 	}
 
-
-	for (int i = 0; i < 12; i++)
+	RakNet::Packet* packet;
+	for (packet = m_pPeerInterface->Receive(); packet;
+	m_pPeerInterface->DeallocatePacket(packet),
+		packet = m_pPeerInterface->Receive())
 	{
-		Red[i].canJump = false;
-		Blue[i].canJump = false;
-		Red[i].directions = CheckMoveableDirections(Red, Blue, Red[i]);
-		for (int j = 0; j < Red[i].directions.size(); j++)
+		switch (packet->data[0])
 		{
-			if (Red[i].crowned)
+		case ID_SERVER_DECISION:
+		{
+			unsigned int a;
+			RakNet::BitStream bsIn(packet->data, packet->length, false);
+			bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+			bsIn.Read(id); // game id
+			bsIn.Read(a); // client id
+			bsIn.Read(turn);	// trun
+			bsIn.Read(player); // playerturn
+			bsIn.Read(state); // playerturn
+			for (int j = 0; j < 12; j++)
 			{
-				if (Red[i].directions[j] == OneJump ||
-					Red[i].directions[j] == TwoJump ||
-					Red[i].directions[j] == ThreeJump ||
-					Red[i].directions[j] == FourJump)
-				{
-					Red[i].canJump = true;
-				}
-			}
-			else
-			{
-				if (Red[i].directions[j] == OneJump ||
-					Red[i].directions[j] == TwoJump)
-				{
-					Red[i].canJump = true;
-				}
-			}
+				bsIn.Read(Red[j].position.x);
+				bsIn.Read(Red[j].position.y);
+				bsIn.Read(Red[j].position.z);
+				bsIn.Read(Red[j].isALive);
+				bsIn.Read(Red[j].crowned);
+				bsIn.Read(Red[j].color);
+
+				bsIn.Read(Blue[j].position.x);
+				bsIn.Read(Blue[j].position.y);
+				bsIn.Read(Blue[j].position.z);
+				bsIn.Read(Blue[j].isALive);
+				bsIn.Read(Blue[j].crowned);
+				bsIn.Read(Blue[j].color);
+			}// checker positions
+			printf((turn) ? "Not My Turn" : "My Turn");
+			break;
 		}
-		Blue[i].directions = CheckMoveableDirections(Blue, Red, Blue[i]);
-		for (int j = 0; j < Blue[i].directions.size(); j++)
-		{
-			if (Blue[i].crowned)
-			{
-				if (Blue[i].directions[j] == OneJump ||
-					Blue[i].directions[j] == TwoJump ||
-					Blue[i].directions[j] == ThreeJump ||
-					Blue[i].directions[j] == FourJump)
-				{
-					Blue[i].canJump = true;
-				}
-			}
-			else
-			{
-				if (Blue[i].directions[j] == ThreeJump ||
-					Blue[i].directions[j] == FourJump)
-				{
-					Blue[i].canJump = true;
-				}
-			}
+		default:
+			break;
 		}
 	}
+
+	//for (int i = 0; i < 12; i++)
+	//{
+	//	Red[i].canJump = false;
+	//	Blue[i].canJump = false;
+	//	Red[i].directions = CheckMoveableDirections(Red, Blue, Red[i]);
+	//	for (int j = 0; j < Red[i].directions.size(); j++)
+	//	{
+	//		if (Red[i].crowned)
+	//		{
+	//			if (Red[i].directions[j] == OneJump ||
+	//				Red[i].directions[j] == TwoJump ||
+	//				Red[i].directions[j] == ThreeJump ||
+	//				Red[i].directions[j] == FourJump)
+	//			{
+	//				Red[i].canJump = true;
+	//			}
+	//		}
+	//		else
+	//		{
+	//			if (Red[i].directions[j] == OneJump ||
+	//				Red[i].directions[j] == TwoJump)
+	//			{
+	//				Red[i].canJump = true;
+	//			}
+	//		}
+	//	}
+	//	Blue[i].directions = CheckMoveableDirections(Blue, Red, Blue[i]);
+	//	for (int j = 0; j < Blue[i].directions.size(); j++)
+	//	{
+	//		if (Blue[i].crowned)
+	//		{
+	//			if (Blue[i].directions[j] == OneJump ||
+	//				Blue[i].directions[j] == TwoJump ||
+	//				Blue[i].directions[j] == ThreeJump ||
+	//				Blue[i].directions[j] == FourJump)
+	//			{
+	//				Blue[i].canJump = true;
+	//			}
+	//		}
+	//		else
+	//		{
+	//			if (Blue[i].directions[j] == ThreeJump ||
+	//				Blue[i].directions[j] == FourJump)
+	//			{
+	//				Blue[i].canJump = true;
+	//			}
+	//		}
+	//	}
+	//}
 	DidBlueCrown(Blue);
 	DidRedCrown(Red);
 	if (m_pickPosition.x > 85)
@@ -192,6 +232,7 @@ bool ClientSideGame::update(float deltaTime)
 				bsOut.Write((RakNet::MessageID)GameMessages::ID_SEND_CURRENT_MOVE);
 				bsOut.Write(id); // game ID
 				bsOut.Write(recievedId); // checker
+				bsOut.Write(player); // Persons Turn
 				bsOut.Write(Red[selectedChecker].position.x); // Checker
 				bsOut.Write(Red[selectedChecker].position.y); // Checker
 				bsOut.Write(Red[selectedChecker].position.z); // Checker
@@ -201,11 +242,18 @@ bool ClientSideGame::update(float deltaTime)
 				m_pPeerInterface->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, 0,
 					RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
 
+
+
 				break;
 			}
 			case Moved:
-
+			{
+				m_pickPosition.x = 3000;
+				m_pickPosition.y = 3000;
+				m_pickPosition.z = 3000;
+				state = Empty;
 				break;
+			}
 			case Empty:
 				if (IsClickingChecker(m_pickPosition, Red, glm::vec4(1, 0.5, 0, 1)))
 				{
@@ -221,14 +269,34 @@ bool ClientSideGame::update(float deltaTime)
 			switch (state)
 			{
 			case Clicked:
-				// send data 
-				break;
-			case Moved:
+			{
 
+				RakNet::BitStream bsOut;
+				//Ensure that the write order is the same as the read order on the server!
+				bsOut.Write((RakNet::MessageID)GameMessages::ID_SEND_CURRENT_MOVE);
+				bsOut.Write(id); // game ID
+				bsOut.Write(recievedId); // checker
+				bsOut.Write(player); // Persons Turn
+				bsOut.Write(Blue[selectedChecker].position.x); // Checker
+				bsOut.Write(Blue[selectedChecker].position.y); // Checker
+				bsOut.Write(Blue[selectedChecker].position.z); // Checker
+				bsOut.Write(m_pickPosition.x); // PickPosition
+				bsOut.Write(m_pickPosition.y); // PickPosition
+				bsOut.Write(m_pickPosition.z); // PickPosition
+				m_pPeerInterface->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, 0,
+					RakNet::UNASSIGNED_SYSTEM_ADDRESS, true);
+				break;
+			}
+			case Moved:
+				m_pickPosition.x = 3000;
+				m_pickPosition.y = 3000;
+				m_pickPosition.z = 3000;
+				state = Empty;
 				break;
 			case Empty:
 				if (IsClickingChecker(m_pickPosition, Blue, glm::vec4(0, 0.5, 1, 1)))
 				{
+					selectedChecker = FindClickingChecker(m_pickPosition, Blue);
 					state = Clicked;
 				}
 				break;
@@ -305,215 +373,215 @@ void ClientSideGame::draw()
 	Gizmos::draw(m_camera->getProjectionView());
 }
 
-bool canMoveDirectionOne(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
-{
-	for (int j = 0; j < 12; j++)
-	{
-		if (selected.position.x - distance < 10 || selected.position.z + distance > 80)
-		{
-			return false;
-		}
-		else
-		{
-			if ((currentPlayer[j].position.x > selected.position.x - 5 - distance &&
-				currentPlayer[j].position.x < selected.position.x + 5 - distance &&
-				currentPlayer[j].position.z > selected.position.z - 5 + distance &&
-				currentPlayer[j].position.z < selected.position.z + 5 + distance) ||
-				(otherPlayer[j].position.x > selected.position.x - 5 - distance &&
-					otherPlayer[j].position.x < selected.position.x + 5 - distance &&
-					otherPlayer[j].position.z > selected.position.z - 5 + distance &&
-					otherPlayer[j].position.z < selected.position.z + 5 + distance))
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-bool canMoveDirectionTwo(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
-{
-	for (int j = 0; j < 12; j++)
-	{
-		if (selected.position.x + distance > 80 || selected.position.z + distance > 80)
-		{
-			return false;
-		}
-		else
-		{
-			if ((currentPlayer[j].position.x > selected.position.x - 5 + distance &&
-				currentPlayer[j].position.x < selected.position.x + 5 + distance &&
-				currentPlayer[j].position.z > selected.position.z - 5 + distance &&
-				currentPlayer[j].position.z < selected.position.z + 5 + distance) ||
-				(otherPlayer[j].position.x > selected.position.x - 5 + distance &&
-					otherPlayer[j].position.x < selected.position.x + 5 + distance &&
-					otherPlayer[j].position.z > selected.position.z - 5 + distance &&
-					otherPlayer[j].position.z < selected.position.z + 5 + distance))
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-bool canMoveDirectionThree(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
-{
-	for (int j = 0; j < 12; j++)
-	{
-		if (selected.position.x + distance > 80 || selected.position.z - distance < 10)
-		{
-			return false;
-		}
-		else
-		{
-			if ((currentPlayer[j].position.x > selected.position.x - 5 + distance &&
-				currentPlayer[j].position.x < selected.position.x + 5 + distance &&
-				currentPlayer[j].position.z > selected.position.z - 5 - distance &&
-				currentPlayer[j].position.z < selected.position.z + 5 - distance) ||
-				(otherPlayer[j].position.x > selected.position.x - 5 + distance &&
-					otherPlayer[j].position.x < selected.position.x + 5 + distance &&
-					otherPlayer[j].position.z > selected.position.z - 5 - distance &&
-					otherPlayer[j].position.z < selected.position.z + 5 - distance))
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-bool canMoveDirectionFour(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
-{
-	for (int j = 0; j < 12; j++)
-	{
-		if (selected.position.x - distance < 10 || selected.position.z - distance < 10)
-		{
-			return false;
-		}
-		else
-		{
-			if ((currentPlayer[j].position.x > selected.position.x - 5 - distance &&
-				currentPlayer[j].position.x < selected.position.x + 5 - distance &&
-				currentPlayer[j].position.z > selected.position.z - 5 - distance &&
-				currentPlayer[j].position.z < selected.position.z + 5 - distance) ||
-				(otherPlayer[j].position.x > selected.position.x - 5 - distance &&
-					otherPlayer[j].position.x < selected.position.x + 5 - distance &&
-					otherPlayer[j].position.z > selected.position.z - 5 - distance &&
-					otherPlayer[j].position.z < selected.position.z + 5 - distance))
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
-bool canJumpDirectionOne(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
-{
-	if (canMoveDirectionOne(currentPlayer, otherPlayer, selected, 20))
-	{
-		for (int j = 0; j < 12; j++)
-		{
-			if ((otherPlayer[j].position.x > selected.position.x - 5 - 10 &&
-				otherPlayer[j].position.x < selected.position.x + 5 - 10 &&
-				otherPlayer[j].position.z > selected.position.z - 5 + 10 &&
-				otherPlayer[j].position.z < selected.position.z + 5 + 10))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-bool canJumpDirectionTwo(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
-{
-	if (canMoveDirectionTwo(currentPlayer, otherPlayer, selected, 20))
-	{
-		for (int j = 0; j < 12; j++)
-		{
-			if ((otherPlayer[j].position.x > selected.position.x - 5 + 10 &&
-				otherPlayer[j].position.x < selected.position.x + 5 + 10 &&
-				otherPlayer[j].position.z > selected.position.z - 5 + 10 &&
-				otherPlayer[j].position.z < selected.position.z + 5 + 10))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-bool canJumpDirectionThree(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
-{
-	if (canMoveDirectionThree(currentPlayer, otherPlayer, selected, 20))
-	{
-		for (int j = 0; j < 12; j++)
-		{
-			if ((otherPlayer[j].position.x > selected.position.x - 5 + 10 &&
-				otherPlayer[j].position.x < selected.position.x + 5 + 10 &&
-				otherPlayer[j].position.z > selected.position.z - 5 - 10 &&
-				otherPlayer[j].position.z < selected.position.z + 5 - 10))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-bool canJumpDirectionFour(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
-{
-	if (canMoveDirectionFour(currentPlayer, otherPlayer, selected, 20))
-	{
-		for (int j = 0; j < 12; j++)
-		{
-			if ((otherPlayer[j].position.x > selected.position.x - 5 - 10 &&
-				otherPlayer[j].position.x < selected.position.x + 5 - 10 &&
-				otherPlayer[j].position.z > selected.position.z - 5 - 10 &&
-				otherPlayer[j].position.z < selected.position.z + 5 - 10))
-			{
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
-std::vector<Directions> ClientSideGame::CheckMoveableDirections(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
-{
-	// all these checks are for the blue checker
-	std::vector<Directions> directions;
-	if (canMoveDirectionThree(currentPlayer, otherPlayer, selected, 10))
-	{
-		directions.push_back(Three);
-	}
-	if (canMoveDirectionFour(currentPlayer, otherPlayer, selected, 10))
-	{
-		directions.push_back(Four);
-	}
-	if (canJumpDirectionThree(currentPlayer, otherPlayer, selected))
-	{
-		directions.push_back(ThreeJump);
-	}
-	if (canJumpDirectionFour(currentPlayer, otherPlayer, selected))
-	{
-		directions.push_back(FourJump);
-	}
-	if (canMoveDirectionOne(currentPlayer, otherPlayer, selected, 10))
-	{
-		directions.push_back(One);
-	}
-	if (canMoveDirectionTwo(currentPlayer, otherPlayer, selected, 10))
-	{
-		directions.push_back(Two);
-	}
-	if (canJumpDirectionOne(currentPlayer, otherPlayer, selected))
-	{
-		directions.push_back(OneJump);
-	}
-	if (canJumpDirectionTwo(currentPlayer, otherPlayer, selected))
-	{
-		directions.push_back(TwoJump);
-	}
-
-	return directions;
-}
+//bool canMoveDirectionOne(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
+//{
+//	for (int j = 0; j < 12; j++)
+//	{
+//		if (selected.position.x - distance < 10 || selected.position.z + distance > 80)
+//		{
+//			return false;
+//		}
+//		else
+//		{
+//			if ((currentPlayer[j].position.x > selected.position.x - 5 - distance &&
+//				currentPlayer[j].position.x < selected.position.x + 5 - distance &&
+//				currentPlayer[j].position.z > selected.position.z - 5 + distance &&
+//				currentPlayer[j].position.z < selected.position.z + 5 + distance) ||
+//				(otherPlayer[j].position.x > selected.position.x - 5 - distance &&
+//					otherPlayer[j].position.x < selected.position.x + 5 - distance &&
+//					otherPlayer[j].position.z > selected.position.z - 5 + distance &&
+//					otherPlayer[j].position.z < selected.position.z + 5 + distance))
+//			{
+//				return false;
+//			}
+//		}
+//	}
+//	return true;
+//}
+//bool canMoveDirectionTwo(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
+//{
+//	for (int j = 0; j < 12; j++)
+//	{
+//		if (selected.position.x + distance > 80 || selected.position.z + distance > 80)
+//		{
+//			return false;
+//		}
+//		else
+//		{
+//			if ((currentPlayer[j].position.x > selected.position.x - 5 + distance &&
+//				currentPlayer[j].position.x < selected.position.x + 5 + distance &&
+//				currentPlayer[j].position.z > selected.position.z - 5 + distance &&
+//				currentPlayer[j].position.z < selected.position.z + 5 + distance) ||
+//				(otherPlayer[j].position.x > selected.position.x - 5 + distance &&
+//					otherPlayer[j].position.x < selected.position.x + 5 + distance &&
+//					otherPlayer[j].position.z > selected.position.z - 5 + distance &&
+//					otherPlayer[j].position.z < selected.position.z + 5 + distance))
+//			{
+//				return false;
+//			}
+//		}
+//	}
+//	return true;
+//}
+//bool canMoveDirectionThree(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
+//{
+//	for (int j = 0; j < 12; j++)
+//	{
+//		if (selected.position.x + distance > 80 || selected.position.z - distance < 10)
+//		{
+//			return false;
+//		}
+//		else
+//		{
+//			if ((currentPlayer[j].position.x > selected.position.x - 5 + distance &&
+//				currentPlayer[j].position.x < selected.position.x + 5 + distance &&
+//				currentPlayer[j].position.z > selected.position.z - 5 - distance &&
+//				currentPlayer[j].position.z < selected.position.z + 5 - distance) ||
+//				(otherPlayer[j].position.x > selected.position.x - 5 + distance &&
+//					otherPlayer[j].position.x < selected.position.x + 5 + distance &&
+//					otherPlayer[j].position.z > selected.position.z - 5 - distance &&
+//					otherPlayer[j].position.z < selected.position.z + 5 - distance))
+//			{
+//				return false;
+//			}
+//		}
+//	}
+//	return true;
+//}
+//bool canMoveDirectionFour(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected, int distance)
+//{
+//	for (int j = 0; j < 12; j++)
+//	{
+//		if (selected.position.x - distance < 10 || selected.position.z - distance < 10)
+//		{
+//			return false;
+//		}
+//		else
+//		{
+//			if ((currentPlayer[j].position.x > selected.position.x - 5 - distance &&
+//				currentPlayer[j].position.x < selected.position.x + 5 - distance &&
+//				currentPlayer[j].position.z > selected.position.z - 5 - distance &&
+//				currentPlayer[j].position.z < selected.position.z + 5 - distance) ||
+//				(otherPlayer[j].position.x > selected.position.x - 5 - distance &&
+//					otherPlayer[j].position.x < selected.position.x + 5 - distance &&
+//					otherPlayer[j].position.z > selected.position.z - 5 - distance &&
+//					otherPlayer[j].position.z < selected.position.z + 5 - distance))
+//			{
+//				return false;
+//			}
+//		}
+//	}
+//	return true;
+//}
+//
+//bool canJumpDirectionOne(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
+//{
+//	if (canMoveDirectionOne(currentPlayer, otherPlayer, selected, 20))
+//	{
+//		for (int j = 0; j < 12; j++)
+//		{
+//			if ((otherPlayer[j].position.x > selected.position.x - 5 - 10 &&
+//				otherPlayer[j].position.x < selected.position.x + 5 - 10 &&
+//				otherPlayer[j].position.z > selected.position.z - 5 + 10 &&
+//				otherPlayer[j].position.z < selected.position.z + 5 + 10))
+//			{
+//				return true;
+//			}
+//		}
+//	}
+//	return false;
+//}
+//bool canJumpDirectionTwo(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
+//{
+//	if (canMoveDirectionTwo(currentPlayer, otherPlayer, selected, 20))
+//	{
+//		for (int j = 0; j < 12; j++)
+//		{
+//			if ((otherPlayer[j].position.x > selected.position.x - 5 + 10 &&
+//				otherPlayer[j].position.x < selected.position.x + 5 + 10 &&
+//				otherPlayer[j].position.z > selected.position.z - 5 + 10 &&
+//				otherPlayer[j].position.z < selected.position.z + 5 + 10))
+//			{
+//				return true;
+//			}
+//		}
+//	}
+//	return false;
+//}
+//bool canJumpDirectionThree(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
+//{
+//	if (canMoveDirectionThree(currentPlayer, otherPlayer, selected, 20))
+//	{
+//		for (int j = 0; j < 12; j++)
+//		{
+//			if ((otherPlayer[j].position.x > selected.position.x - 5 + 10 &&
+//				otherPlayer[j].position.x < selected.position.x + 5 + 10 &&
+//				otherPlayer[j].position.z > selected.position.z - 5 - 10 &&
+//				otherPlayer[j].position.z < selected.position.z + 5 - 10))
+//			{
+//				return true;
+//			}
+//		}
+//	}
+//	return false;
+//}
+//bool canJumpDirectionFour(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
+//{
+//	if (canMoveDirectionFour(currentPlayer, otherPlayer, selected, 20))
+//	{
+//		for (int j = 0; j < 12; j++)
+//		{
+//			if ((otherPlayer[j].position.x > selected.position.x - 5 - 10 &&
+//				otherPlayer[j].position.x < selected.position.x + 5 - 10 &&
+//				otherPlayer[j].position.z > selected.position.z - 5 - 10 &&
+//				otherPlayer[j].position.z < selected.position.z + 5 - 10))
+//			{
+//				return true;
+//			}
+//		}
+//	}
+//	return false;
+//}
+//
+//std::vector<Directions> ClientSideGame::CheckMoveableDirections(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected)
+//{
+//	// all these checks are for the blue checker
+//	std::vector<Directions> directions;
+//	if (canMoveDirectionThree(currentPlayer, otherPlayer, selected, 10))
+//	{
+//		directions.push_back(Three);
+//	}
+//	if (canMoveDirectionFour(currentPlayer, otherPlayer, selected, 10))
+//	{
+//		directions.push_back(Four);
+//	}
+//	if (canJumpDirectionThree(currentPlayer, otherPlayer, selected))
+//	{
+//		directions.push_back(ThreeJump);
+//	}
+//	if (canJumpDirectionFour(currentPlayer, otherPlayer, selected))
+//	{
+//		directions.push_back(FourJump);
+//	}
+//	if (canMoveDirectionOne(currentPlayer, otherPlayer, selected, 10))
+//	{
+//		directions.push_back(One);
+//	}
+//	if (canMoveDirectionTwo(currentPlayer, otherPlayer, selected, 10))
+//	{
+//		directions.push_back(Two);
+//	}
+//	if (canJumpDirectionOne(currentPlayer, otherPlayer, selected))
+//	{
+//		directions.push_back(OneJump);
+//	}
+//	if (canJumpDirectionTwo(currentPlayer, otherPlayer, selected))
+//	{
+//		directions.push_back(TwoJump);
+//	}
+//
+//	return directions;
+//}
 
 bool ClientSideGame::DidRedCrown(Checker currentPlayer[])
 {

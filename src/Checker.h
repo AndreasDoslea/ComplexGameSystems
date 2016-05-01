@@ -17,21 +17,20 @@ enum Directions {
 	None
 };
 
+enum Type { RedType, BlueType };
+
 class Checker {
 private:
 
-
-
-	enum Type { Red, BLue };
-
 public:
+
 	glm::vec3 position;
 	glm::vec4 color;
 	bool isALive = true;
 	bool crowned = false;
 	bool canJump = false;
 	std::vector<Directions> directions;
-	Type type;
+	int type;
 
 
 };
