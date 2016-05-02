@@ -11,15 +11,16 @@ ServerSideGame::ServerSideGame() : id(0)
 
 }
 
-ServerSideGame::ServerSideGame(RakNet::RakPeerInterface& m_pPeerInterface, int a_id, ConnectionInfo a_playerA, ConnectionInfo a_playerB) : id(a_id)
+ServerSideGame::ServerSideGame(RakNet::RakPeerInterface* pPeerInterface, int a_id, ConnectionInfo a_playerA, ConnectionInfo a_playerB) : id(a_id)
 {
+	m_pPeerInterface = pPeerInterface;
 	players.push_back(a_playerA);
 	players.push_back(a_playerB);
-	Start(m_pPeerInterface);
+	Start();
 
 }
 
-void ServerSideGame::Start(RakNet::RakPeerInterface& pPeerInterface)
+void ServerSideGame::Start()
 {
 	for (int i = 0; i < 4; i++)
 	{
@@ -65,63 +66,94 @@ void ServerSideGame::Start(RakNet::RakPeerInterface& pPeerInterface)
 			bsOut.Write(Blue[j].isALive);
 			bsOut.Write(Blue[j].crowned);
 		}// checker positions
-		pPeerInterface.Send(&bsOut, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, players[i].sysAddress, false);
+		m_pPeerInterface->Send(&bsOut, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, players[i].sysAddress, false);
 	}
 
-	Update(pPeerInterface);
+	Update();
 }
 
-void ServerSideGame::Update(RakNet::RakPeerInterface& m_pPeerInterface)
+void ServerSideGame::Update()
 {
 	// recieve the data 
 	// do the action with shit 
 	// tell who can move now
-	RakNet::Packet* packet = nullptr;
-	while (!threadStop.load())
-	{
-		for (packet = m_pPeerInterface.Receive(); packet; m_pPeerInterface.DeallocatePacket(packet), packet = m_pPeerInterface.Receive())
+	//RakNet::Packet* packet = nullptr;
+	//while (!threadStop.load())
+	//{
+		//for (packet = m_pPeerInterface.Receive(); packet; m_pPeerInterface.DeallocatePacket(packet), packet = m_pPeerInterface.Receive())
+		//{
+		//	switch (packet->data[0])
+		//	{
+		//	case ID_SEND_CURRENT_MOVE:
+		//	{
+		//		RakNet::BitStream bsIn(packet->data, packet->length, true);
+		//		bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+		//		Move(gameData, m_pPeerInterface);
+		//		break;
+		//	}
+		//	case ID_NEW_INCOMING_CONNECTION:
+		//	{
+		//		std::cout << "SHIT" << std::endl;
+		//	}
+		//	//case ASKFAKL:
+		//	//{
+		//	//	threadStop.store(true);
+		//	//}
+		//	default:
+		//		break;
+		//	}
+		//}
+	
+		if (gameData.size() > 0)
 		{
-			switch (packet->data[0])
-			{
-			case ID_SEND_CURRENT_MOVE:
-			{
-				RakNet::BitStream bsIn(packet->data, packet->length, true);
-				bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
-				Move(bsIn, m_pPeerInterface);
-				break;
-			}
-			case ID_NEW_INCOMING_CONNECTION:
-			{
-				std::cout << "SHIT" << std::endl;
-			}
-			//case ASKFAKL:
-			//{
-			//	threadStop.store(true);
-			//}
-			default:
-				break;
-			}
+			std::thread myThread(&ServerSideGame::Move, this);
+			myThread.join();
+			gameData.clear();
 		}
-	}
+	//}
 }
 
-void ServerSideGame::Move(RakNet::BitStream &bsIn, RakNet::RakPeerInterface& m_pPeerInterface)
+void ServerSideGame::Move()
 {
 	unsigned int playerid;
 	int RecieveGameId;
-	bsIn.Read(RecieveGameId); // game ID
-	if (!RecieveGameId == id)
+	//bsIn.Read(RecieveGameId); // game ID
+	//if (!RecieveGameId == id)
+	//{
+	//	return;
+	//}
+	//bsIn.Read(playerid); // client
+	//bsIn.Read(player); // Persons Turn
+	//bsIn.Read(tempChecker.position.x); // Checker
+	//bsIn.Read(tempChecker.position.y); // Checker
+	//bsIn.Read(tempChecker.position.z); // Checker
+	//bsIn.Read(m_pickPosition.x); // PickPosition
+	//bsIn.Read(m_pickPosition.y); // PickPosition
+	//bsIn.Read(m_pickPosition.z); // PickPosition
+
+	for (int i = 0; i < gameData.size(); i++)
 	{
-		return;
+		RecieveGameId = gameData[i].gameId;
+
+		if (!RecieveGameId == id)
+		{
+			//gameData.erase(gameData.begin());
+			return;
+		}
+
+		playerid = gameData[i].playerId;
+		player = gameData[i].playerTurn;
+		tempChecker.position.x = gameData[i].checker.position.x;
+		tempChecker.position.y = gameData[i].checker.position.y;
+		tempChecker.position.z = gameData[i].checker.position.z;
+		m_pickPosition.x = gameData[i].pickPosition.x;
+		m_pickPosition.y = gameData[i].pickPosition.y;
+		m_pickPosition.z = gameData[i].pickPosition.z;
+
+		//gameData.erase(gameData.begin());
 	}
-	bsIn.Read(playerid); // client
-	bsIn.Read(player); // Persons Turn
-	bsIn.Read(tempChecker.position.x); // Checker
-	bsIn.Read(tempChecker.position.y); // Checker
-	bsIn.Read(tempChecker.position.z); // Checker
-	bsIn.Read(m_pickPosition.x); // PickPosition
-	bsIn.Read(m_pickPosition.y); // PickPosition
-	bsIn.Read(m_pickPosition.z); // PickPosition
+
+	
 
 	selectedChecker = findChecker(tempChecker);
 
@@ -198,12 +230,12 @@ void ServerSideGame::Move(RakNet::BitStream &bsIn, RakNet::RakPeerInterface& m_p
 		}
 		if (a == 12 - c)
 		{
-			Jumping(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1), m_pPeerInterface);
-			Movement(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1), m_pPeerInterface);
+			Jumping(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1));
+			Movement(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1));
 		}
 		if (Red[selectedChecker].canJump)
 		{
-			Jumping(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1), m_pPeerInterface);
+			Jumping(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1));
 			//Movement(m_pickPosition, Red, Blue, selectedChecker, state, glm::vec4(1, 0, 0, 1), m_pPeerInterface);
 		}
 		break;
@@ -228,13 +260,13 @@ void ServerSideGame::Move(RakNet::BitStream &bsIn, RakNet::RakPeerInterface& m_p
 		}
 		if (b == 12 - d)
 		{
-			Jumping(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1), m_pPeerInterface);
-			Movement(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1), m_pPeerInterface);
+			Jumping(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1));
+			Movement(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1));
 		}
 
 		if (Blue[selectedChecker].canJump)
 		{
-			Jumping(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1), m_pPeerInterface);
+			Jumping(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1));
 			//Movement(m_pickPosition, Blue, Red, selectedChecker, state, glm::vec4(0, 0, 1, 1), m_pPeerInterface);
 		}
 		break;
@@ -658,7 +690,7 @@ void ServerSideGame::RecursiveJumping(Checker currentPlayer[], Checker otherPlay
 
 }
 
-void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour, RakNet::RakPeerInterface& m_pPeerInterface)
+void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour)
 {
 	if (currentPlayer[selectedChecker].crowned)
 	{
@@ -671,7 +703,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 			{
 				currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x - 10, 1.25, currentPlayer[selectedChecker].position.z + 10);
 				currentPlayer[selectedChecker].color = colour;
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 		if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 + 10 &&
@@ -684,7 +716,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 			{
 				currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x + 10, 1.25, currentPlayer[selectedChecker].position.z + 10);
 				currentPlayer[selectedChecker].color = colour;
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 		if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 + 10 &&
@@ -696,7 +728,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 			{
 				currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x + 10, 1.25, currentPlayer[selectedChecker].position.z - 10);
 				currentPlayer[selectedChecker].color = colour;
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 		if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 - 10 &&
@@ -708,7 +740,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 			{
 				currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x - 10, 1.25, currentPlayer[selectedChecker].position.z - 10);
 				currentPlayer[selectedChecker].color = colour;
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 	}
@@ -727,7 +759,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 				{
 					currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x - 10, 1.25, currentPlayer[selectedChecker].position.z + 10);
 					currentPlayer[selectedChecker].color = colour;
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 + 10 &&
@@ -740,8 +772,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 				{
 					currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x + 10, 1.25, currentPlayer[selectedChecker].position.z + 10);
 					currentPlayer[selectedChecker].color = colour;
-					SendData(m_pPeerInterface);
-
+					SendData();
 				}
 			}
 			break;
@@ -757,7 +788,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 				{
 					currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x + 10, 1.25, currentPlayer[selectedChecker].position.z - 10);
 					currentPlayer[selectedChecker].color = colour;
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 - 10 &&
@@ -769,7 +800,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 				{
 					currentPlayer[selectedChecker].position = glm::vec3(currentPlayer[selectedChecker].position.x - 10, 1.25, currentPlayer[selectedChecker].position.z - 10);
 					currentPlayer[selectedChecker].color = colour;
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			break;
@@ -782,7 +813,7 @@ void ServerSideGame::Movement(glm::vec3 pickPosition, Checker currentPlayer[], C
 
 }
 
-void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour, RakNet::RakPeerInterface& m_pPeerInterface)
+void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour)
 {
 	if (currentPlayer[selectedChecker].crowned)
 	{
@@ -798,7 +829,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 				otherPlayer[findCheckerToDie(OneJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 				MoveDeadCheckers(otherPlayer);
 				RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 
@@ -814,7 +845,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 				otherPlayer[findCheckerToDie(TwoJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 				MoveDeadCheckers(otherPlayer);
 				RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 
@@ -830,7 +861,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 				otherPlayer[findCheckerToDie(ThreeJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 				MoveDeadCheckers(otherPlayer);
 				RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 		if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 - 20 &&
@@ -845,7 +876,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 				otherPlayer[findCheckerToDie(FourJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 				MoveDeadCheckers(otherPlayer);
 				RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-				SendData(m_pPeerInterface);
+				SendData();
 			}
 		}
 	}
@@ -867,7 +898,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 					otherPlayer[findCheckerToDie(OneJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 					MoveDeadCheckers(otherPlayer);
 					RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 + 20 &&
@@ -882,7 +913,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 					otherPlayer[findCheckerToDie(TwoJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 					MoveDeadCheckers(otherPlayer);
 					RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			break;
@@ -901,7 +932,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 					otherPlayer[findCheckerToDie(ThreeJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 					MoveDeadCheckers(otherPlayer);
 					RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			if (pickPosition.x > currentPlayer[selectedChecker].position.x - 5 - 20 &&
@@ -916,7 +947,7 @@ void ServerSideGame::Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Ch
 					otherPlayer[findCheckerToDie(FourJump, currentPlayer, otherPlayer, currentPlayer[selectedChecker])].isALive = false;
 					MoveDeadCheckers(otherPlayer);
 					RecursiveJumping(currentPlayer, otherPlayer, colour, selectedChecker);
-					SendData(m_pPeerInterface);
+					SendData();
 				}
 			}
 			break;
@@ -987,7 +1018,7 @@ int ServerSideGame::findCheckerToDie(Directions dir, Checker currentPlayer[], Ch
 	}
 }
 
-void ServerSideGame::SendData(RakNet::RakPeerInterface& m_pPeerInterface)
+void ServerSideGame::SendData()
 {
 	DidBlueCrown(Blue);
 	DidRedCrown(Red);
@@ -1018,7 +1049,7 @@ void ServerSideGame::SendData(RakNet::RakPeerInterface& m_pPeerInterface)
 			bsOut.Write(Blue[j].crowned);
 			bsOut.Write(Blue[j].color);
 		}// checker positions
-		m_pPeerInterface.Send(&bsOut, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, players[i].sysAddress, false);
+		m_pPeerInterface->Send(&bsOut, IMMEDIATE_PRIORITY, RELIABLE_ORDERED, 0, players[i].sysAddress, false);
 	}
 }
 

@@ -39,7 +39,8 @@ public:
 	void startGame(RakNet::BitStream& bsIn);
 
 	RakNet::RakPeerInterface* m_pPeerInterface;
-	const char* IP = "10.19.20.32";
+	const char* IP = "127.0.0.1";
+	//const char* IP = "10.19.20.32";
 	const unsigned short PORT = 5456;
 	unsigned int m_uiClientId;
 

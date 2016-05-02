@@ -1,5 +1,4 @@
 #include "Server.h"
-#include "ServerSideGame.h"
 
 Server::Server() {
 	// initialize the Raknet peer interface first
@@ -80,6 +79,14 @@ void Server::handleNetworkMessages() {
 					sendGameObjectToAllClients(gameObjects[clientID - 1], packet->systemAddress);
 					break;
 				}
+				case ID_SEND_CURRENT_MOVE:
+				{
+					RakNet::BitStream bsIn(packet->data, packet->length, true);
+					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
+					ReadAndSendData(bsIn);
+					//Move(bsIn, m_pPeerInterface);
+					break;
+				}
 				default:
 					std::cout << "Received a message with a unknown id: " << packet->data[0];
 					break;
@@ -87,6 +94,11 @@ void Server::handleNetworkMessages() {
 		}
 
 		lobby();
+
+		for (int i = 0; i < m_games.size(); i++)
+		{
+			m_games[i].Update();
+		}
 
 		for (int i = 0; i < gameObjects.size(); i++)
 		{
@@ -217,7 +229,10 @@ void Server::updateLobby(RakNet::BitStream& bsIn, RakNet::SystemAddress ownerSys
 
 void Server::StartGame()
 {
-	ServerSideGame Game = ServerSideGame(*m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]);
+
+	//m_games[0] = ServerSideGame(*m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]);
+
+	m_games.push_back(ServerSideGame(m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]));
 }
 
 void Server::lobby()
@@ -234,8 +249,10 @@ void Server::lobby()
 		//	m_pPeerInterface->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, 0, m_totalPeopleConnected[i].sysAddress, true);
 		//}
 		//std::thread Game(ServerSideGame(*m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]));
-		m_games.push_back(std::thread(&Server::StartGame, this));
-
+		//ServerSideGame newGame;
+		//m_games.push_back(newGame);
+		//m_threads.push_back(std::thread(&Server::StartGame, this));
+		StartGame();
 		//std::thread Game(Server::StartGame, this, ...)
 		//std::thread Game(StartGame, ...);
 		//
@@ -245,3 +262,20 @@ void Server::lobby()
 	m_peopleInLobby = m_totalPeopleConnected;
 }
 
+void Server::ReadAndSendData(RakNet::BitStream& bsIn)
+{
+	bsIn.Read(tempGameData.gameId); // game ID
+	bsIn.Read(tempGameData.playerId); // client
+	bsIn.Read(tempGameData.playerTurn); // Persons Turn
+	bsIn.Read(tempGameData.checker.position.x); // Checker
+	bsIn.Read(tempGameData.checker.position.y); // Checker
+	bsIn.Read(tempGameData.checker.position.z); // Checker
+	bsIn.Read(tempGameData.pickPosition.x); // PickPosition
+	bsIn.Read(tempGameData.pickPosition.y); // PickPosition
+	bsIn.Read(tempGameData.pickPosition.z); // PickPosition
+
+	for (int i = 0; i < m_games.size(); i++)
+	{
+		m_games[i].gameData.push_back(tempGameData);
+	}
+}

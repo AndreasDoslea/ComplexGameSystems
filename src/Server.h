@@ -10,19 +10,21 @@
 #include <MessageIdentifiers.h>
 #include <BitStream.h>
 
-#include <thread>
 #include <algorithm>
 
 #include "GameMessages.h"
 #include "GameObject.h"
 
+#include "Checker.h"
+
+#include "ServerSideGame.h"
+
+
+
 class Server {
 public:
 
-	struct ConnectionInfo {
-		unsigned int			uiConnectionID;
-		RakNet::SystemAddress	sysAddress;
-	};
+
 
 	Server();
 	~Server();
@@ -48,11 +50,13 @@ protected:
 	void lobby();
 	void StartGame();
 
+	void ReadAndSendData(RakNet::BitStream& bsIn);
+
 	RakNet::RakPeerInterface*							m_pPeerInterface;
 
 private:
 
-
+	GameData tempGameData;
 
 	const unsigned short PORT = 5456;
 
@@ -62,7 +66,8 @@ private:
 	std::vector<GameObject>								gameObjects;
 	std::vector<ConnectionInfo>							m_peopleInLobby;
 	std::vector<ConnectionInfo>							m_totalPeopleConnected;
-	std::vector<std::thread>							m_games;
+	std::vector<std::thread>							m_threads;
+	std::vector<ServerSideGame>							m_games;
 	unsigned int										m_uiObjectCounter;
 	int gameCount = 0;
 };

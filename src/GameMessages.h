@@ -1,6 +1,7 @@
 #pragma once
 
-#include <MessageIdentifiers.h>
+#include <MessageIdentifiers.h> 
+#include "Checker.h"
 
 enum GameMessages {
 	ID_SERVER_TEXT_MESSAGE = ID_USER_PACKET_ENUM + 1,
@@ -14,4 +15,21 @@ enum GameMessages {
 	ID_SEND_CURRENT_MOVE = ID_USER_PACKET_ENUM + 9,
 	ID_SERVER_DECISION = ID_USER_PACKET_ENUM + 10,
 	ID_SERVER_UPDATE = ID_USER_PACKET_ENUM + 11,
+};
+
+enum Player { Player_1, Player_2 };
+
+struct GameData
+{
+	unsigned int gameId;
+	unsigned int playerId;
+	Player playerTurn;
+	Checker checker;
+	glm::vec3 pickPosition;
+};
+
+struct ConnectionInfo
+{
+	unsigned int			uiConnectionID;
+	RakNet::SystemAddress	sysAddress;
 };
