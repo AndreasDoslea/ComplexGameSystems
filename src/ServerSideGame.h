@@ -8,6 +8,7 @@ public:
 	ServerSideGame(RakNet::RakPeerInterface& m_pPeerInterface, int a_id, ConnectionInfo a_playerA, ConnectionInfo a_playerB);
 	void Start(RakNet::RakPeerInterface& m_pPeerInterface);
 
+	std::vector<int> data;
 
 private:
 
@@ -39,8 +40,11 @@ private:
 
 
 	void Movement(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour, RakNet::RakPeerInterface& m_pPeerInterface);
-	void Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour);
+	void Jumping(glm::vec3 pickPosition, Checker currentPlayer[], Checker otherPlayer[], int selectedChecker, State &state, glm::vec4 colour, RakNet::RakPeerInterface& m_pPeerInterface);
 	void RecursiveJumping(Checker currentPlayer[], Checker otherPlayer[], glm::vec4 colour, int selectedChecker);
+
+	bool DidBlueCrown(Checker currentPlayer[]);
+	bool DidRedCrown(Checker currentPlayer[]);
 
 	void SendData(RakNet::RakPeerInterface& m_pPeerInterface);
 

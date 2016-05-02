@@ -46,6 +46,7 @@ protected:
 
 	void updateLobby(RakNet::BitStream& bsIn, RakNet::SystemAddress ownerSystemAddress);
 	void lobby();
+	void StartGame();
 
 	RakNet::RakPeerInterface*							m_pPeerInterface;
 

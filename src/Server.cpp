@@ -68,6 +68,7 @@ void Server::handleNetworkMessages() {
 					bsIn.IgnoreBytes(sizeof(RakNet::MessageID));
 					createNewObject(bsIn, packet->systemAddress);
 					break;
+
 				}
 				case ID_CLIENT_UPDATE_OBJECT_POSITION:
 				{
@@ -214,6 +215,11 @@ void Server::updateLobby(RakNet::BitStream& bsIn, RakNet::SystemAddress ownerSys
 	//}
 }
 
+void Server::StartGame()
+{
+	ServerSideGame Game = ServerSideGame(*m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]);
+}
+
 void Server::lobby()
 {
 	if (m_totalPeopleConnected.size() >= 2)
@@ -227,8 +233,15 @@ void Server::lobby()
 		//	bsOut.Write(m_totalPeopleConnected[i].uiConnectionID); // client id
 		//	m_pPeerInterface->Send(&bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, 0, m_totalPeopleConnected[i].sysAddress, true);
 		//}
-		ServerSideGame Game = ServerSideGame(*m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]);
+		//std::thread Game(ServerSideGame(*m_pPeerInterface, gameCount, m_totalPeopleConnected[0], m_totalPeopleConnected[1]));
+		m_games.push_back(std::thread(&Server::StartGame, this));
+
+		//std::thread Game(Server::StartGame, this, ...)
+		//std::thread Game(StartGame, ...);
+		//
 		gameCount++;
+		m_totalPeopleConnected.clear();
 	}
 	m_peopleInLobby = m_totalPeopleConnected;
 }
+

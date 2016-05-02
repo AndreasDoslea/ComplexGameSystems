@@ -38,10 +38,7 @@ private:
 
 	void DrawGameBoard();
 
-	std::vector<Directions> CheckMoveableDirections(Checker currentPlayer[], Checker otherPlayer[], const Checker &selected);
-	bool DidRedCrown(Checker currentPlayer[]);
-	bool DidBlueCrown(Checker currentPlayer[]);
-	bool IsClickingChecker(glm::vec3 pickposition, Checker checker[], glm::vec4 selectedColor);
+	bool IsClickingChecker(glm::vec3 pickposition, Checker checker[], glm::vec4 selectedColor, glm::vec4 OldColour);
 	int ClientSideGame::FindClickingChecker(glm::vec3 pickposition, Checker checker[]);
 
 	int selectedChecker = -1;
